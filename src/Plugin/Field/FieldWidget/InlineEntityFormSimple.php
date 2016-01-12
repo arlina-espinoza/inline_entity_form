@@ -20,7 +20,8 @@ use Drupal\Core\Form\FormStateInterface;
  *   id = "inline_entity_form_simple",
  *   label = @Translation("Inline entity form - Simple"),
  *   field_types = {
- *     "entity_reference"
+ *     "entity_reference",
+ *     "entity_reference_revisions"
  *   },
  *   multiple_values = false
  * )

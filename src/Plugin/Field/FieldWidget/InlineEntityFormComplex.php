@@ -26,7 +26,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *   id = "inline_entity_form_complex",
  *   label = @Translation("Inline entity form - Complex"),
  *   field_types = {
- *     "entity_reference"
+ *     "entity_reference",
+ *     "entity_reference_revisions"
  *   },
  *   multiple_values = true
  * )
@@ -615,7 +616,14 @@ class InlineEntityFormComplex extends InlineEntityFormBase implements ContainerF
       foreach ($values as $delta => &$item) {
         /** @var \Drupal\Core\Entity\EntityInterface $entity */
         $entity = $item['entity'];
+        $is_revisionable = \Drupal::entityManager()->getStorage($entity->getEntityTypeId())->getEntityType()->isRevisionable();
         if (!empty($item['needs_save'])) {
+          if ($is_revisionable) {
+            $entity->setNewRevision();
+            // If a new revision is created, save the current user as revision author.
+            $entity->setRevisionCreationTime(REQUEST_TIME);
+            $entity->setRevisionAuthorId(\Drupal::currentUser()->id());
+          }
           $entity->save();
         }
         if (!empty($item['delete'])) {
@@ -652,7 +660,11 @@ class InlineEntityFormComplex extends InlineEntityFormBase implements ContainerF
     foreach ($values as $value) {
       $item = $value;
       if (isset($item['entity'])) {
+        $is_revisionable = \Drupal::entityManager()->getStorage($item['entity']->getEntityTypeId())->getEntityType()->isRevisionable();
         $item['target_id'] = $item['entity']->id();
+        if ($is_revisionable) {
+          $item['target_revision_id'] = $item['entity']->getRevisionId();
+        }
         $items[] = $item;
       }
     }
