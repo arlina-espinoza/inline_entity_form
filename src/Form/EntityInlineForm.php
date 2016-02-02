@@ -140,8 +140,10 @@ class EntityInlineForm implements InlineFormInterface {
    */
   public function entityForm($entity_form, FormStateInterface $form_state) {
     $operation = 'default';
-    $controller = $this->entityManager->getFormObject($entity_form['#entity']->getEntityTypeId(), $operation);
+    $controller = $this->entityManager->getFormObject($entity_form['#entity']->getEntityTypeId(), $operation, FALSE);
     $controller->setEntity($entity_form['#entity']);
+    $form_state->set(['inline_entity_form', $entity_form['#ief_id'], 'entity_form'], $controller);
+
     $child_form_state = $this->buildChildFormState($controller, $form_state, $entity_form['#entity'], $operation, $entity_form['#parents']);
 
     $entity_form = $controller->buildForm($entity_form, $child_form_state);
@@ -189,8 +191,8 @@ class EntityInlineForm implements InlineFormInterface {
       $entity = $entity_form['#entity'];
       $operation = 'default';
 
-      $controller = \Drupal::entityManager()
-        ->getFormObject($entity->getEntityTypeId(), $operation);
+      /** @var \Drupal\Core\Entity\EntityFormInterface $controller */
+      $controller = $form_state->get(['inline_entity_form', $entity_form['#ief_id'], 'entity_form']);
       $child_form_state = static::buildChildFormState($controller, $form_state, $entity, $operation, $entity_form['#parents']);
       $entity_form['#entity'] = $controller->validateForm($entity_form, $child_form_state);
 
@@ -227,7 +229,8 @@ class EntityInlineForm implements InlineFormInterface {
     /** @var \Drupal\Core\Entity\EntityInterface $entity */
     $entity = $entity_form['#entity'];
     $operation = 'default';
-    $controller = \Drupal::entityManager()->getFormObject($entity->getEntityTypeId(), $operation);
+    /** @var \Drupal\Core\Entity\EntityFormInterface $controller */
+    $controller = $form_state->get(['inline_entity_form', $entity_form['#ief_id'], 'entity_form']);
     $controller->setEntity($entity);
 
     $child_form_state = static::buildChildFormState($controller, $form_state, $entity, $operation, $entity_form['#parents']);
@@ -295,11 +298,8 @@ class EntityInlineForm implements InlineFormInterface {
     // Filter out all submitted values that are not directly relevant for this
     // IEF. Otherwise they might mess things up.
     $form_state_values = $form_state->getValues();
-    foreach (array_keys($form_state_values) as $key) {
-      if ($key !== $parents[0]) {
-        unset($form_state_values[$key]);
-      }
-    }
+    $form_state_values = static::extractArraySequence($form_state_values, $parents);
+
     $child_form_state->setValues($form_state_values);
     $child_form_state->setStorage($form_state->getStorage());
     $child_form_state->set('form_display', entity_get_form_display($entity->getEntityTypeId(), $entity->bundle(), $operation));
@@ -323,6 +323,34 @@ class EntityInlineForm implements InlineFormInterface {
     $child_form_state->setSubmitHandlers($form_state->getSubmitHandlers());
 
     return $child_form_state;
+  }
+
+  /**
+   * Extracts part of array based on keys in the list.
+   *
+   * Returned array will be a subset of the original, containing only
+   * values whose keys match items from the list.
+   *
+   * @param array $array
+   *   Original array.
+   * @param array $list
+   *   List of keys to be used for extraction.
+   *
+   * @return array
+   *   Extracted array.
+   */
+  static public function extractArraySequence($array, $list) {
+    if ($list) {
+      if (isset($array[$list[0]])) {
+        return [
+          $list[0] => static::extractArraySequence($array[$list[0]], array_slice($list, 1)),
+        ];
+      }
+      else {
+        return [];
+      }
+    }
+    return $array;
   }
 
   /**
