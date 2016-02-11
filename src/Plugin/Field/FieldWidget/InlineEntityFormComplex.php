@@ -622,7 +622,13 @@ class InlineEntityFormComplex extends InlineEntityFormBase implements ContainerF
             $entity->setNewRevision();
             // If a new revision is created, save the current user as revision author.
             $entity->setRevisionCreationTime(REQUEST_TIME);
-            $entity->setRevisionAuthorId(\Drupal::currentUser()->id());
+
+            if (in_array('Drupal\node\NodeInterface', class_implements($entity))) {
+              $entity->setRevisionAuthorId(\Drupal::currentUser()->id());
+            }
+            elseif (in_array('Drupal\entity\Revision\EntityRevisionLogInterface', class_implements($entity))) {
+              $entity->setRevisionUser(\Drupal::currentUser());
+            }
           }
           $entity->save();
         }
